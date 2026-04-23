@@ -228,7 +228,10 @@ class _BibleReaderState extends State<BibleReader> {
                             IconButton(
                               onPressed: () async {
                                 if (doNotShowAgain) {
-                                  await prefs.setBool(_hideStartupInfoKey, true);
+                                  await prefs.setBool(
+                                    _hideStartupInfoKey,
+                                    true,
+                                  );
                                 }
                                 if (mounted) {
                                   Navigator.of(dialogContext).pop();
@@ -319,14 +322,14 @@ class _BibleReaderState extends State<BibleReader> {
                                 vertical: 6,
                               ),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF2F6B33).withValues(
-                                  alpha: 0.09,
-                                ),
+                                color: const Color(
+                                  0xFF2F6B33,
+                                ).withValues(alpha: 0.09),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: const Color(0xFF2F6B33).withValues(
-                                    alpha: 0.2,
-                                  ),
+                                  color: const Color(
+                                    0xFF2F6B33,
+                                  ).withValues(alpha: 0.2),
                                 ),
                               ),
                               child: Row(
@@ -396,8 +399,14 @@ class _BibleReaderState extends State<BibleReader> {
 
     const simpleLabels = <String, String>{
       'CONJ': 'Conjunction',
+      'CONJ-N': 'Conjunction (Nestle variant)',
       'PREP': 'Preposition',
       'ADV': 'Adverb',
+      'ADV-C': 'Comparative adverb',
+      'ADV-S': 'Superlative adverb',
+      'ADV-I': 'Interrogative adverb',
+      'ADV-N': 'Adverb (Nestle variant)',
+      'ADV-K': 'Adverb (Byzantine/TR variant)',
       'PRT': 'Particle',
       'PRT-N': 'Negative particle',
       'PRT-I': 'Interrogative particle',
@@ -405,11 +414,18 @@ class _BibleReaderState extends State<BibleReader> {
       'ARAM': 'Aramaic word',
       'INJ': 'Interjection',
       'COND': 'Conditional particle',
+      'COND-K': 'Conditional particle (Byzantine/TR variant)',
     };
     const simpleDetails = <String, String>{
       'CONJ': 'Connects words, phrases, or clauses.',
+      'CONJ-N': 'A conjunction reading from the Nestle/critical text.',
       'PREP': 'Shows relationship such as place, time, or direction.',
       'ADV': 'Modifies a verb, adjective, or another adverb.',
+      'ADV-C': 'An adverb in comparative form (more / -er).',
+      'ADV-S': 'An adverb in superlative form (most / -est).',
+      'ADV-I': 'An adverb used in questions (how, when, where).',
+      'ADV-N': 'An adverb reading from the Nestle/critical text.',
+      'ADV-K': 'An adverb reading from the Byzantine / Textus Receptus tradition.',
       'PRT': 'A small function word that adds nuance or structure.',
       'PRT-N': 'A particle used to express negation.',
       'PRT-I': 'A particle used in questions.',
@@ -417,6 +433,7 @@ class _BibleReaderState extends State<BibleReader> {
       'ARAM': 'A transliterated Aramaic word in the Greek text.',
       'INJ': 'An exclamation or emotional expression.',
       'COND': 'Introduces a condition (often translated as if).',
+      'COND-K': 'Conditional particle reading from the Byzantine / Textus Receptus tradition.',
     };
 
     if (simpleLabels.containsKey(code)) {
@@ -644,8 +661,91 @@ class _BibleReaderState extends State<BibleReader> {
           }
         }
       }
+      // Trailing variant suffixes on verbs, e.g. V-AAI-3P-ATT (Attic form).
+      for (var i = 3; i < parts.length; i++) {
+        final v = parts[i];
+        const vLabels = <String, String>{
+          'ATT': 'Attic form',
+          'ABB': 'Abbreviated form',
+          'N': 'Nestle variant',
+          'K': 'Byzantine/TR variant',
+        };
+        const vDetails = <String, String>{
+          'ATT': 'An Attic Greek dialectal form preserved in the New Testament text.',
+          'ABB': 'A shortened or abbreviated written form.',
+          'N': 'Reading from the Nestle/critical Greek text.',
+          'K': 'Reading from the Byzantine / Textus Receptus tradition.',
+        };
+        final label = vLabels[v];
+        if (label != null) {
+          tokens.add(
+            _MorphToken(label, vDetails[v] ?? 'Variant code: $v.'),
+          );
+        }
+      }
     } else if (parts.length >= 2) {
-      final cng = parts[1];
+      var cng = parts[1];
+
+      // Indeclinable / non-standard forms used in this dataset:
+      //   N-LI  = letter (indeclinable)
+      //   N-OI  = other indeclinable
+      //   N-PRI = proper name (indeclinable)
+      //   A-NUI = numeral (indeclinable)
+      const indeclLabels = <String, String>{
+        'LI': 'Letter (indeclinable)',
+        'OI': 'Indeclinable',
+        'PRI': 'Proper name (indeclinable)',
+        'NUI': 'Numeral (indeclinable)',
+      };
+      const indeclDetails = <String, String>{
+        'LI': 'A Greek letter used as a label or number; does not inflect.',
+        'OI': 'An indeclinable form that does not change for case, number, or gender.',
+        'PRI': 'A proper name that does not inflect (often transliterated from Hebrew or Aramaic).',
+        'NUI': 'A cardinal number written out as a word; does not inflect.',
+      };
+      if (indeclLabels.containsKey(cng)) {
+        tokens.add(
+          _MorphToken(indeclLabels[cng]!, indeclDetails[cng]!),
+        );
+        cng = '';
+      } else {
+        // Possessive pronouns (S-*) use a 2-character person + possessor-number
+        // prefix before the standard case/number/gender triplet, e.g.
+        //   S-1SNSM = 1st person singular possessor, nominative singular masculine possessed.
+        if (pos == 'S' &&
+            cng.length >= 2 &&
+            personLabels.containsKey(cng[0]) &&
+            numLabels.containsKey(cng[1])) {
+          final p = cng[0];
+          final pn = cng[1];
+          tokens.add(
+            _MorphToken(
+              '${personLabels[p]} ${numLabels[pn]!.toLowerCase()} possessor',
+              'Possessor is ${personDetails[p]?.toLowerCase() ?? 'person $p.'} '
+                  '${numDetails[pn]?.toLowerCase() ?? ''}'.trim(),
+            ),
+          );
+          cng = cng.substring(2);
+        } else {
+          // Personal (P-) and reflexive (F-) pronouns may be prefixed with a
+          // single person digit, e.g. F-2APM (2nd person accusative plural masculine)
+          // or P-1NS (1st person nominative singular).
+          const pronounsWithPerson = {'P', 'F'};
+          if (pronounsWithPerson.contains(pos) &&
+              cng.isNotEmpty &&
+              personLabels.containsKey(cng[0])) {
+            final p = cng[0];
+            tokens.add(
+              _MorphToken(
+                personLabels[p] ?? p,
+                personDetails[p] ?? 'Person code: $p.',
+              ),
+            );
+            cng = cng.substring(1);
+          }
+        }
+      }
+
       if (cng.isNotEmpty) {
         final c = cng[0];
         tokens.add(
@@ -664,23 +764,32 @@ class _BibleReaderState extends State<BibleReader> {
           _MorphToken(genLabels[g] ?? g, genDetails[g] ?? 'Gender code: $g.'),
         );
       }
-      if (pos == 'A' && parts.length >= 3) {
-        const compLabels = <String, String>{
-          'C': 'Comparative',
-          'S': 'Superlative',
-        };
-        const compDetails = <String, String>{
-          'C': 'Compares two or more things (more).',
-          'S': 'Expresses the highest degree (most).',
-        };
-        final compCode = parts[2];
-        final compLabel = compLabels[compCode];
-        if (compLabel != null) {
+
+      // Trailing variant / qualifier suffixes (parts[2] and beyond).
+      const variantLabels = <String, String>{
+        'C': 'Comparative',
+        'S': 'Superlative',
+        'N': 'Nestle variant',
+        'K': 'Byzantine/TR variant',
+        'ATT': 'Attic form',
+        'ABB': 'Abbreviated form',
+        'I': 'Interrogative',
+      };
+      const variantDetails = <String, String>{
+        'C': 'Compares two or more things (more / -er).',
+        'S': 'Expresses the highest degree (most / -est).',
+        'N': 'Reading from the Nestle/critical Greek text.',
+        'K': 'Reading from the Byzantine / Textus Receptus tradition.',
+        'ATT': 'An Attic Greek dialectal form preserved in the New Testament text.',
+        'ABB': 'A shortened or abbreviated written form.',
+        'I': 'Carries an interrogative (question) force.',
+      };
+      for (var i = 2; i < parts.length; i++) {
+        final v = parts[i];
+        final label = variantLabels[v];
+        if (label != null) {
           tokens.add(
-            _MorphToken(
-              compLabel,
-              compDetails[compCode] ?? 'Comparison code: $compCode.',
-            ),
+            _MorphToken(label, variantDetails[v] ?? 'Variant code: $v.'),
           );
         }
       }
@@ -820,12 +929,16 @@ class _BibleReaderState extends State<BibleReader> {
     return codes.last;
   }
 
-  List<_MorphToken> _morphTokensForSelectedCode(Word word, String selectedCode) {
+  List<_MorphToken> _morphTokensForSelectedCode(
+    Word word,
+    String selectedCode,
+  ) {
     if (word.m == null || word.m!.isEmpty) return const [];
     if (word.s.length <= 1) return _decodeMorphologyTokens(word.m);
 
     final morph = word.m!;
-    final selectedIsFirstCode = word.s.isNotEmpty && word.s.first == selectedCode;
+    final selectedIsFirstCode =
+        word.s.isNotEmpty && word.s.first == selectedCode;
 
     // In this dataset, T-* often tags the article in a two-code phrase.
     // If we focused a later non-article code, suppress mismatched morphology chips.
@@ -862,14 +975,23 @@ class _BibleReaderState extends State<BibleReader> {
     final raw = word.w.trim();
     if (raw.isEmpty) return word.w;
 
-    // Only add the "(the)" prefix when the article is baked into the English
+    final lower = raw.toLowerCase();
+
+    // Mark the definite article "the" when it is baked into the English
     // lexeme with no dedicated G3588 card. If G3588 is present as its own
     // Strong's code, it gets its own article card and the prefix would be
     // redundant (e.g. avoids "(the) of liberty").
-    final lower = raw.toLowerCase();
-    final startsWithThe = lower.startsWith('the ') && raw.length > 4;
-    if (startsWithThe && !word.s.contains('G3588')) {
+    if (lower.startsWith('the ') && raw.length > 4 && !word.s.contains('G3588')) {
       return '(the) ${raw.substring(4)}';
+    }
+
+    // Greek has no indefinite article, so KJV's "a" / "an" is supplied by the
+    // translator. Mark it so readers know it is not in the Greek.
+    if (lower.startsWith('a ') && raw.length > 2) {
+      return '(a) ${raw.substring(2)}';
+    }
+    if (lower.startsWith('an ') && raw.length > 3) {
+      return '(an) ${raw.substring(3)}';
     }
 
     return raw;
@@ -883,8 +1005,9 @@ class _BibleReaderState extends State<BibleReader> {
     required bool isArticle,
   }) {
     final sectionTitle = isArticle ? 'Article Entry' : 'Lexical Entry';
-    final sectionIcon =
-        isArticle ? Icons.text_fields_rounded : Icons.menu_book_rounded;
+    final sectionIcon = isArticle
+        ? Icons.text_fields_rounded
+        : Icons.menu_book_rounded;
 
     return Container(
       margin: const EdgeInsets.only(top: 12),
@@ -1101,7 +1224,10 @@ class _BibleReaderState extends State<BibleReader> {
                 ),
               ),
             ],
-            if ((entryMap['derivation'] ?? '').toString().trim().isNotEmpty) ...[
+            if ((entryMap['derivation'] ?? '')
+                .toString()
+                .trim()
+                .isNotEmpty) ...[
               const SizedBox(height: 10),
               Text(
                 entryMap['derivation'].toString().trim(),
@@ -1127,7 +1253,8 @@ class _BibleReaderState extends State<BibleReader> {
     final studyLabel = _studyWordLabel(word);
     // Only show the "(the)" legend when the article is embedded in the English
     // text with no dedicated G3588 card (otherwise the article has its own card).
-    final textStartsWithThe = word.w.toLowerCase().trim().startsWith('the ') && word.w.length > 4;
+    final textStartsWithThe =
+        word.w.toLowerCase().trim().startsWith('the ') && word.w.length > 4;
     final showsArticleMarker = textStartsWithThe && !word.s.contains('G3588');
 
     if (!_isStrongsDictionaryLoaded) {
@@ -1207,7 +1334,7 @@ class _BibleReaderState extends State<BibleReader> {
                           const Padding(
                             padding: EdgeInsets.only(top: 4),
                             child: Text(
-                              '(the) indicates an article in the Greek phrase.',
+                              'Words in parentheses such as (the), (a), or (an) mark articles supplied in English that are not separate words in the Greek.',
                               style: TextStyle(
                                 color: Colors.black54,
                                 fontSize: 12.5,
@@ -1230,7 +1357,8 @@ class _BibleReaderState extends State<BibleReader> {
                         for (final display in displayEntries)
                           _buildStrongsDefinitionCard(
                             code: display.code,
-                            entryMap: _strongsDictionary[display.code]
+                            entryMap:
+                                _strongsDictionary[display.code]
                                     is Map<String, dynamic>
                                 ? _strongsDictionary[display.code]
                                       as Map<String, dynamic>
