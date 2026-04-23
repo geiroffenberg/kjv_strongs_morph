@@ -14,6 +14,13 @@ import '../services/note_service.dart';
 import 'note_editor.dart';
 import 'notes_list_screen.dart';
 
+class _MorphToken {
+  final String label;
+  final String explanation;
+
+  const _MorphToken(this.label, this.explanation);
+}
+
 class BibleReader extends StatefulWidget {
   const BibleReader({super.key});
 
@@ -202,9 +209,436 @@ class _BibleReaderState extends State<BibleReader> {
     });
   }
 
+  List<_MorphToken> _decodeMorphologyTokens(String? code) {
+    if (code == null || code.isEmpty) return const [];
+
+    const simpleLabels = <String, String>{
+      'CONJ': 'Conjunction',
+      'PREP': 'Preposition',
+      'ADV': 'Adverb',
+      'PRT': 'Particle',
+      'PRT-N': 'Negative particle',
+      'PRT-I': 'Interrogative particle',
+      'HEB': 'Hebrew word',
+      'ARAM': 'Aramaic word',
+      'INJ': 'Interjection',
+      'COND': 'Conditional particle',
+    };
+    const simpleDetails = <String, String>{
+      'CONJ': 'Connects words, phrases, or clauses.',
+      'PREP': 'Shows relationship such as place, time, or direction.',
+      'ADV': 'Modifies a verb, adjective, or another adverb.',
+      'PRT': 'A small function word that adds nuance or structure.',
+      'PRT-N': 'A particle used to express negation.',
+      'PRT-I': 'A particle used in questions.',
+      'HEB': 'A transliterated Hebrew word in the Greek text.',
+      'ARAM': 'A transliterated Aramaic word in the Greek text.',
+      'INJ': 'An exclamation or emotional expression.',
+      'COND': 'Introduces a condition (often translated as if).',
+    };
+
+    if (simpleLabels.containsKey(code)) {
+      return [
+        _MorphToken(
+          simpleLabels[code]!,
+          simpleDetails[code] ?? 'Morphology detail for $code.',
+        ),
+      ];
+    }
+
+    final parts = code.split('-');
+    final tokens = <_MorphToken>[];
+    const posLabels = <String, String>{
+      'N': 'Noun',
+      'V': 'Verb',
+      'A': 'Adjective',
+      'T': 'Article',
+      'P': 'Personal pronoun',
+      'R': 'Relative pronoun',
+      'C': 'Reciprocal pronoun',
+      'D': 'Demonstrative pronoun',
+      'K': 'Correlative pronoun',
+      'I': 'Interrogative pronoun',
+      'X': 'Indefinite pronoun',
+      'Q': 'Correlative/interrogative pronoun',
+      'F': 'Reflexive pronoun',
+      'S': 'Possessive pronoun',
+    };
+    const posDetails = <String, String>{
+      'N': 'A naming word (person, place, thing, or idea).',
+      'V': 'An action or state-of-being word.',
+      'A': 'Describes or qualifies a noun.',
+      'T': 'The definite article (the).',
+      'P': 'A pronoun referring to grammatical person.',
+      'R': 'A pronoun linking to a previous word (who, which, that).',
+      'C': 'A pronoun expressing mutual action (one another).',
+      'D': 'A pronoun pointing out something (this, that).',
+      'K': 'A pronoun pairing corresponding ideas.',
+      'I': 'A pronoun used in direct questions.',
+      'X': 'A non-specific pronoun (someone, something).',
+      'Q': 'A pronoun with correlative/interrogative force.',
+      'F': 'A pronoun referring back to the subject itself.',
+      'S': 'A pronoun indicating possession.',
+    };
+    const caseLabels = <String, String>{
+      'N': 'Nominative',
+      'G': 'Genitive',
+      'D': 'Dative',
+      'A': 'Accusative',
+      'V': 'Vocative',
+    };
+    const caseDetails = <String, String>{
+      'N': 'Usually marks the subject of a clause.',
+      'G': 'Often shows possession or source.',
+      'D': 'Often marks indirect object, location, or means.',
+      'A': 'Usually marks direct object or extent.',
+      'V': 'Used for direct address.',
+    };
+    const numLabels = <String, String>{'S': 'Singular', 'P': 'Plural'};
+    const numDetails = <String, String>{
+      'S': 'Refers to one person or thing.',
+      'P': 'Refers to more than one person or thing.',
+    };
+    const genLabels = <String, String>{
+      'M': 'Masculine',
+      'F': 'Feminine',
+      'N': 'Neuter',
+    };
+    const genDetails = <String, String>{
+      'M': 'Masculine grammatical gender.',
+      'F': 'Feminine grammatical gender.',
+      'N': 'Neuter grammatical gender.',
+    };
+    const tenseLabels = <String, String>{
+      'P': 'Present',
+      'I': 'Imperfect',
+      'F': 'Future',
+      'A': 'Aorist',
+      'R': 'Perfect',
+      'L': 'Pluperfect',
+    };
+    const tenseDetails = <String, String>{
+      'P': 'Usually portrays ongoing action.',
+      'I': 'Usually portrays ongoing action in past time.',
+      'F': 'Usually portrays action as future.',
+      'A': 'Often portrays action as a whole event.',
+      'R': 'Action completed with continuing results.',
+      'L': 'Past completed action with resulting state.',
+    };
+    const voiceLabels = <String, String>{
+      'A': 'Active',
+      'M': 'Middle',
+      'P': 'Passive',
+      'E': 'Middle/Passive',
+      'D': 'Middle deponent',
+      'O': 'Passive deponent',
+      'N': 'Middle/Passive deponent',
+      'Q': 'Active/Middle deponent',
+    };
+    const voiceDetails = <String, String>{
+      'A': 'Subject performs the action.',
+      'M': 'Subject participates in or benefits from the action.',
+      'P': 'Subject receives the action.',
+      'E': 'Form can function as middle or passive.',
+      'D': 'Middle form with active meaning.',
+      'O': 'Passive form with active meaning.',
+      'N': 'Middle/passive form with active meaning.',
+      'Q': 'Active or middle form used deponently.',
+    };
+    const moodLabels = <String, String>{
+      'I': 'Indicative',
+      'S': 'Subjunctive',
+      'O': 'Optative',
+      'M': 'Imperative',
+      'N': 'Infinitive',
+      'P': 'Participle',
+    };
+    const moodDetails = <String, String>{
+      'I': 'States a fact or assertion.',
+      'S': 'Expresses possibility, purpose, or contingency.',
+      'O': 'Expresses wish or potentiality (rare in NT Greek).',
+      'M': 'Expresses a command or request.',
+      'N': 'Verbal noun form (to do).',
+      'P': 'Verbal adjective form (doing / having done).',
+    };
+    const personLabels = <String, String>{'1': '1st person', '2': '2nd person', '3': '3rd person'};
+    const personDetails = <String, String>{
+      '1': 'Speaker or group including speaker.',
+      '2': 'Addressee.',
+      '3': 'Someone or something else.',
+    };
+
+    final pos = parts[0];
+    final posLabel = posLabels[pos] ?? pos;
+    tokens.add(
+      _MorphToken(
+        posLabel,
+        posDetails[pos] ?? 'Part of speech: $posLabel.',
+      ),
+    );
+
+    if (pos == 'V' && parts.length >= 2) {
+      var tvm = parts[1];
+      if (tvm.startsWith('2')) {
+        tokens.add(
+          const _MorphToken(
+            '2nd form',
+            'An alternate (second) inflectional form in the lexical tradition.',
+          ),
+        );
+        tvm = tvm.substring(1);
+      }
+      if (tvm.isNotEmpty) {
+        final t = tvm[0];
+        tokens.add(
+          _MorphToken(
+            tenseLabels[t] ?? t,
+            tenseDetails[t] ?? 'Tense code: $t.',
+          ),
+        );
+      }
+      if (tvm.length >= 2) {
+        final v = tvm[1];
+        tokens.add(
+          _MorphToken(
+            voiceLabels[v] ?? v,
+            voiceDetails[v] ?? 'Voice code: $v.',
+          ),
+        );
+      }
+      if (tvm.length >= 3) {
+        final m = tvm[2];
+        tokens.add(
+          _MorphToken(
+            moodLabels[m] ?? m,
+            moodDetails[m] ?? 'Mood code: $m.',
+          ),
+        );
+      }
+      if (parts.length >= 3) {
+        final pn = parts[2];
+        if (pn.isNotEmpty && personLabels.containsKey(pn[0])) {
+          final p = pn[0];
+          tokens.add(
+            _MorphToken(
+              personLabels[p] ?? p,
+              personDetails[p] ?? 'Person code: $p.',
+            ),
+          );
+          if (pn.length >= 2) {
+            final n = pn[1];
+            tokens.add(
+              _MorphToken(
+                numLabels[n] ?? n,
+                numDetails[n] ?? 'Number code: $n.',
+              ),
+            );
+          }
+        } else {
+          if (pn.isNotEmpty) {
+            final c = pn[0];
+            tokens.add(
+              _MorphToken(
+                caseLabels[c] ?? c,
+                caseDetails[c] ?? 'Case code: $c.',
+              ),
+            );
+          }
+          if (pn.length >= 2) {
+            final n = pn[1];
+            tokens.add(
+              _MorphToken(
+                numLabels[n] ?? n,
+                numDetails[n] ?? 'Number code: $n.',
+              ),
+            );
+          }
+          if (pn.length >= 3) {
+            final g = pn[2];
+            tokens.add(
+              _MorphToken(
+                genLabels[g] ?? g,
+                genDetails[g] ?? 'Gender code: $g.',
+              ),
+            );
+          }
+        }
+      }
+    } else if (parts.length >= 2) {
+      final cng = parts[1];
+      if (cng.isNotEmpty) {
+        final c = cng[0];
+        tokens.add(
+          _MorphToken(
+            caseLabels[c] ?? c,
+            caseDetails[c] ?? 'Case code: $c.',
+          ),
+        );
+      }
+      if (cng.length >= 2) {
+        final n = cng[1];
+        tokens.add(
+          _MorphToken(
+            numLabels[n] ?? n,
+            numDetails[n] ?? 'Number code: $n.',
+          ),
+        );
+      }
+      if (cng.length >= 3) {
+        final g = cng[2];
+        tokens.add(
+          _MorphToken(
+            genLabels[g] ?? g,
+            genDetails[g] ?? 'Gender code: $g.',
+          ),
+        );
+      }
+      if (pos == 'A' && parts.length >= 3) {
+        const compLabels = <String, String>{
+          'C': 'Comparative',
+          'S': 'Superlative',
+        };
+        const compDetails = <String, String>{
+          'C': 'Compares two or more things (more).',
+          'S': 'Expresses the highest degree (most).',
+        };
+        final compCode = parts[2];
+        final compLabel = compLabels[compCode];
+        if (compLabel != null) {
+          tokens.add(
+            _MorphToken(
+              compLabel,
+              compDetails[compCode] ?? 'Comparison code: $compCode.',
+            ),
+          );
+        }
+      }
+    }
+
+    return tokens;
+  }
+
+  Future<void> _showMorphTermExplanation(_MorphToken token) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF9DB),
+                borderRadius: BorderRadius.circular(22),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x33000000),
+                    blurRadius: 24,
+                    offset: Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 52,
+                    height: 5,
+                    margin: const EdgeInsets.only(top: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2F6B33).withValues(alpha: 0.28),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  Container(
+                    margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF2F6B33), Color(0xFF3A7C41)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          alignment: Alignment.center,
+                          child: const Icon(
+                            Icons.auto_awesome,
+                            size: 16,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            token.label,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.of(sheetContext).pop(),
+                          icon: const Icon(Icons.close_rounded),
+                          color: Colors.white,
+                          visualDensity: VisualDensity.compact,
+                          splashRadius: 18,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
+                    child: Text(
+                      token.explanation,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        height: 1.55,
+                        color: Color(0xFF1E1E1E),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: FilledButton.tonal(
+                        onPressed: () => Navigator.of(sheetContext).pop(),
+                        style: FilledButton.styleFrom(
+                          foregroundColor: const Color(0xFF2F6B33),
+                          backgroundColor: const Color(0xFF2F6B33).withValues(alpha: 0.13),
+                        ),
+                        child: const Text('Got it'),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _showStrongsEntry(Word word) async {
     if (word.s.isEmpty) return;
-    final code = word.s.first;
+    // For multi-code words (article + noun), the last code is the content word
+    final primaryCode = word.s.length > 1 ? word.s.last : word.s.first;
 
     if (!_isStrongsDictionaryLoaded) {
       await _loadStrongsDictionary();
@@ -212,58 +646,217 @@ class _BibleReaderState extends State<BibleReader> {
 
     if (!mounted) return;
 
-    final entry = _strongsDictionary[code];
+    final entry = _strongsDictionary[primaryCode];
     final entryMap = entry is Map<String, dynamic> ? entry : null;
+    final morphTokens = _decodeMorphologyTokens(word.m);
 
-    showDialog<void>(
+    showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) {
-        return AlertDialog(
-          title: Text('${word.w} ($code)'),
-          content: SingleChildScrollView(
-            child: entryMap == null
-                ? Text('No Greek dictionary entry found for $code.')
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _dictionaryLine('Lemma', entryMap['lemma']),
-                      _dictionaryLine('Translit', entryMap['translit']),
-                      _dictionaryLine('Strong\'s Def', entryMap['strongs_def']),
-                      _dictionaryLine('KJV Def', entryMap['kjv_def']),
-                      _dictionaryLine('Derivation', entryMap['derivation']),
-                    ].whereType<Widget>().toList(),
-                  ),
+        return Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFFFFF9DB),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Header bar
+                Container(
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF2F6B33),
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  child: Row(
+                    children: [
+                      Text(
+                        primaryCode,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                          letterSpacing: 1.2,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: const Icon(Icons.close, color: Colors.white70, size: 22),
+                      ),
+                    ],
+                  ),
+                ),
+                // Body
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // English word
+                        Text(
+                          word.w,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1A1A1A),
+                          ),
+                        ),
+                        // Greek lemma + transliteration
+                        if (entryMap != null) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              if ((entryMap['lemma'] ?? '').toString().isNotEmpty)
+                                Text(
+                                  entryMap['lemma'].toString(),
+                                  style: const TextStyle(
+                                    fontSize: 20,
+                                    color: Color(0xFF2F6B33),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              if ((entryMap['lemma'] ?? '').toString().isNotEmpty &&
+                                  (entryMap['translit'] ?? '').toString().isNotEmpty)
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 6),
+                                  child: Text('·', style: TextStyle(color: Colors.black38, fontSize: 18)),
+                                ),
+                              if ((entryMap['translit'] ?? '').toString().isNotEmpty)
+                                Text(
+                                  entryMap['translit'].toString(),
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.black54,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
+                        // Morphology chips
+                        if (morphTokens.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2F6B33).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: const Color(0xFF2F6B33).withValues(alpha: 0.35),
+                              ),
+                            ),
+                            child: Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                for (final token in morphTokens)
+                                  Material(
+                                    color: const Color(0xFF2F6B33).withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(20),
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(20),
+                                      onTap: () => _showMorphTermExplanation(token),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 8,
+                                        ),
+                                        child: Text(
+                                          token.label,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            color: Color(0xFF2F6B33),
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 16),
+                        const Divider(height: 1, color: Colors.black12),
+                        const SizedBox(height: 14),
+                        // No entry fallback
+                        if (entryMap == null)
+                          Text(
+                            'No entry found for $primaryCode.',
+                            style: const TextStyle(color: Colors.black54),
+                          )
+                        else ...[
+                          // Strong's definition
+                          if ((entryMap['strongs_def'] ?? '').toString().trim().isNotEmpty)
+                            Text(
+                              entryMap['strongs_def'].toString().trim(),
+                              style: const TextStyle(
+                                fontSize: 15,
+                                height: 1.55,
+                                color: Color(0xFF1A1A1A),
+                              ),
+                            ),
+                          // KJV usages
+                          if ((entryMap['kjv_def'] ?? '').toString().trim().isNotEmpty) ...[
+                            const SizedBox(height: 14),
+                            const Divider(height: 1, color: Colors.black12),
+                            const SizedBox(height: 12),
+                            RichText(
+                              text: TextSpan(
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  height: 1.5,
+                                  color: Color(0xFF444444),
+                                ),
+                                children: [
+                                  const TextSpan(
+                                    text: 'KJV uses:  ',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF1A1A1A),
+                                    ),
+                                  ),
+                                  TextSpan(text: entryMap['kjv_def'].toString().trim()),
+                                ],
+                              ),
+                            ),
+                          ],
+                          // Derivation (smaller, muted)
+                          if ((entryMap['derivation'] ?? '').toString().trim().isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            Text(
+                              entryMap['derivation'].toString().trim(),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Colors.black45,
+                                fontStyle: FontStyle.italic,
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         );
       },
-    );
-  }
-
-  Widget? _dictionaryLine(String label, dynamic value) {
-    final text = (value ?? '').toString().trim();
-    if (text.isEmpty) return null;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: RichText(
-        text: TextSpan(
-          style: const TextStyle(color: Colors.black, height: 1.35),
-          children: [
-            TextSpan(
-              text: '$label: ',
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-            TextSpan(text: text),
-          ],
-        ),
-      ),
     );
   }
 
