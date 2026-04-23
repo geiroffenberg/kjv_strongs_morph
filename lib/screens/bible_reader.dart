@@ -21,6 +21,13 @@ class _MorphToken {
   const _MorphToken(this.label, this.explanation);
 }
 
+class _StrongsDisplayEntry {
+  final String code;
+  final bool isArticle;
+
+  const _StrongsDisplayEntry({required this.code, this.isArticle = false});
+}
+
 class BibleReader extends StatefulWidget {
   const BibleReader({super.key});
 
@@ -156,51 +163,226 @@ class _BibleReaderState extends State<BibleReader> {
         builder: (dialogContext) {
           return StatefulBuilder(
             builder: (context, setDialogState) {
-              return AlertDialog(
-                title: const Text('Welcome'),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'This app shows New Testament text with Greek Strong\'s support.',
-                    ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Words added by the translators (not in the Greek original) are shown in italics.',
-                    ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Tap any normal word to view its Greek Strong\'s dictionary entry when available.',
-                    ),
-                    const SizedBox(height: 12),
-                    CheckboxListTile(
-                      contentPadding: EdgeInsets.zero,
-                      dense: true,
-                      value: doNotShowAgain,
-                      onChanged: (value) {
-                        setDialogState(() {
-                          doNotShowAgain = value ?? false;
-                        });
-                      },
-                      title: const Text('Do not show again'),
-                      controlAffinity: ListTileControlAffinity.leading,
-                    ),
-                  ],
+              return Dialog(
+                insetPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 24,
                 ),
-                actions: [
-                  TextButton(
-                    onPressed: () async {
-                      if (doNotShowAgain) {
-                        await prefs.setBool(_hideStartupInfoKey, true);
-                      }
-                      if (mounted) {
-                        Navigator.of(dialogContext).pop();
-                      }
-                    },
-                    child: const Text('Continue'),
+                backgroundColor: Colors.transparent,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF9DB),
+                    borderRadius: BorderRadius.circular(22),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x33000000),
+                        blurRadius: 24,
+                        offset: Offset(0, 12),
+                      ),
+                    ],
                   ),
-                ],
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(18, 14, 12, 14),
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Color(0xFF2F6B33), Color(0xFF3E8146)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.vertical(
+                            top: Radius.circular(22),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 30,
+                              height: 30,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.16),
+                                borderRadius: BorderRadius.circular(9),
+                              ),
+                              alignment: Alignment.center,
+                              child: const Icon(
+                                Icons.auto_stories_rounded,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            const Expanded(
+                              child: Text(
+                                'Welcome',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.2,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () async {
+                                if (doNotShowAgain) {
+                                  await prefs.setBool(_hideStartupInfoKey, true);
+                                }
+                                if (mounted) {
+                                  Navigator.of(dialogContext).pop();
+                                }
+                              },
+                              icon: const Icon(Icons.close_rounded),
+                              color: Colors.white,
+                              visualDensity: VisualDensity.compact,
+                              splashRadius: 20,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(18, 16, 18, 8),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: const [
+                                Icon(
+                                  Icons.translate_rounded,
+                                  size: 18,
+                                  color: Color(0xFF2F6B33),
+                                ),
+                                SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'This app shows New Testament text with Greek Strong\'s support.',
+                                    style: TextStyle(
+                                      fontSize: 14.5,
+                                      height: 1.4,
+                                      color: Color(0xFF1E1E1E),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: const [
+                                Icon(
+                                  Icons.format_italic_rounded,
+                                  size: 18,
+                                  color: Color(0xFF2F6B33),
+                                ),
+                                SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'Words added by translators are shown in italics.',
+                                    style: TextStyle(
+                                      fontSize: 14.5,
+                                      height: 1.4,
+                                      color: Color(0xFF1E1E1E),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: const [
+                                Icon(
+                                  Icons.touch_app_rounded,
+                                  size: 18,
+                                  color: Color(0xFF2F6B33),
+                                ),
+                                SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'Tap a normal word to open Greek Strong\'s entries and morphology details.',
+                                    style: TextStyle(
+                                      fontSize: 14.5,
+                                      height: 1.4,
+                                      color: Color(0xFF1E1E1E),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF2F6B33).withValues(
+                                  alpha: 0.09,
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: const Color(0xFF2F6B33).withValues(
+                                    alpha: 0.2,
+                                  ),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Checkbox(
+                                    value: doNotShowAgain,
+                                    activeColor: const Color(0xFF2F6B33),
+                                    onChanged: (value) {
+                                      setDialogState(() {
+                                        doNotShowAgain = value ?? false;
+                                      });
+                                    },
+                                  ),
+                                  const Expanded(
+                                    child: Text(
+                                      'Do not show again',
+                                      style: TextStyle(
+                                        color: Color(0xFF1E1E1E),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(18, 4, 18, 16),
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: const Color(0xFF2F6B33),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 18,
+                                vertical: 10,
+                              ),
+                            ),
+                            onPressed: () async {
+                              if (doNotShowAgain) {
+                                await prefs.setBool(_hideStartupInfoKey, true);
+                              }
+                              if (mounted) {
+                                Navigator.of(dialogContext).pop();
+                              }
+                            },
+                            child: const Text('Start Reading'),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               );
             },
           );
@@ -361,7 +543,11 @@ class _BibleReaderState extends State<BibleReader> {
       'N': 'Verbal noun form (to do).',
       'P': 'Verbal adjective form (doing / having done).',
     };
-    const personLabels = <String, String>{'1': '1st person', '2': '2nd person', '3': '3rd person'};
+    const personLabels = <String, String>{
+      '1': '1st person',
+      '2': '2nd person',
+      '3': '3rd person',
+    };
     const personDetails = <String, String>{
       '1': 'Speaker or group including speaker.',
       '2': 'Addressee.',
@@ -371,10 +557,7 @@ class _BibleReaderState extends State<BibleReader> {
     final pos = parts[0];
     final posLabel = posLabels[pos] ?? pos;
     tokens.add(
-      _MorphToken(
-        posLabel,
-        posDetails[pos] ?? 'Part of speech: $posLabel.',
-      ),
+      _MorphToken(posLabel, posDetails[pos] ?? 'Part of speech: $posLabel.'),
     );
 
     if (pos == 'V' && parts.length >= 2) {
@@ -409,10 +592,7 @@ class _BibleReaderState extends State<BibleReader> {
       if (tvm.length >= 3) {
         final m = tvm[2];
         tokens.add(
-          _MorphToken(
-            moodLabels[m] ?? m,
-            moodDetails[m] ?? 'Mood code: $m.',
-          ),
+          _MorphToken(moodLabels[m] ?? m, moodDetails[m] ?? 'Mood code: $m.'),
         );
       }
       if (parts.length >= 3) {
@@ -469,28 +649,19 @@ class _BibleReaderState extends State<BibleReader> {
       if (cng.isNotEmpty) {
         final c = cng[0];
         tokens.add(
-          _MorphToken(
-            caseLabels[c] ?? c,
-            caseDetails[c] ?? 'Case code: $c.',
-          ),
+          _MorphToken(caseLabels[c] ?? c, caseDetails[c] ?? 'Case code: $c.'),
         );
       }
       if (cng.length >= 2) {
         final n = cng[1];
         tokens.add(
-          _MorphToken(
-            numLabels[n] ?? n,
-            numDetails[n] ?? 'Number code: $n.',
-          ),
+          _MorphToken(numLabels[n] ?? n, numDetails[n] ?? 'Number code: $n.'),
         );
       }
       if (cng.length >= 3) {
         final g = cng[2];
         tokens.add(
-          _MorphToken(
-            genLabels[g] ?? g,
-            genDetails[g] ?? 'Gender code: $g.',
-          ),
+          _MorphToken(genLabels[g] ?? g, genDetails[g] ?? 'Gender code: $g.'),
         );
       }
       if (pos == 'A' && parts.length >= 3) {
@@ -620,7 +791,9 @@ class _BibleReaderState extends State<BibleReader> {
                         onPressed: () => Navigator.of(sheetContext).pop(),
                         style: FilledButton.styleFrom(
                           foregroundColor: const Color(0xFF2F6B33),
-                          backgroundColor: const Color(0xFF2F6B33).withValues(alpha: 0.13),
+                          backgroundColor: const Color(
+                            0xFF2F6B33,
+                          ).withValues(alpha: 0.13),
                         ),
                         child: const Text('Got it'),
                       ),
@@ -635,20 +808,333 @@ class _BibleReaderState extends State<BibleReader> {
     );
   }
 
+  String _selectPrimaryStrongsCode(List<String> codes) {
+    if (codes.length <= 1) return codes.first;
+
+    // Prefer a non-article lexeme for combined entries like [G3588, G80].
+    final nonArticleCodes = codes.where((code) => code != 'G3588').toList();
+    if (nonArticleCodes.isNotEmpty) {
+      return nonArticleCodes.last;
+    }
+
+    return codes.last;
+  }
+
+  List<_MorphToken> _morphTokensForSelectedCode(Word word, String selectedCode) {
+    if (word.m == null || word.m!.isEmpty) return const [];
+    if (word.s.length <= 1) return _decodeMorphologyTokens(word.m);
+
+    final morph = word.m!;
+    final selectedIsFirstCode = word.s.isNotEmpty && word.s.first == selectedCode;
+
+    // In this dataset, T-* often tags the article in a two-code phrase.
+    // If we focused a later non-article code, suppress mismatched morphology chips.
+    if (morph.startsWith('T-') && !selectedIsFirstCode) {
+      return const [];
+    }
+
+    return _decodeMorphologyTokens(word.m);
+  }
+
+  bool _isMorphSuppressedForSelectedCode(Word word, String selectedCode) {
+    if (word.s.length <= 1) return false;
+    if (!(word.m?.startsWith('T-') ?? false)) return false;
+    return word.s.first != selectedCode;
+  }
+
+  List<_StrongsDisplayEntry> _buildStrongsDisplayEntries(Word word) {
+    if (word.s.isEmpty) return const [];
+
+    final primaryCode = _selectPrimaryStrongsCode(word.s);
+    final entries = <_StrongsDisplayEntry>[
+      _StrongsDisplayEntry(code: primaryCode),
+    ];
+
+    final hasArticle = word.s.contains('G3588');
+    if (hasArticle && primaryCode != 'G3588') {
+      entries.add(const _StrongsDisplayEntry(code: 'G3588', isArticle: true));
+    }
+
+    return entries;
+  }
+
+  String _studyWordLabel(Word word) {
+    final raw = word.w.trim();
+    if (raw.isEmpty) return word.w;
+
+    // Only add the "(the)" prefix when the article is baked into the English
+    // lexeme with no dedicated G3588 card. If G3588 is present as its own
+    // Strong's code, it gets its own article card and the prefix would be
+    // redundant (e.g. avoids "(the) of liberty").
+    final lower = raw.toLowerCase();
+    final startsWithThe = lower.startsWith('the ') && raw.length > 4;
+    if (startsWithThe && !word.s.contains('G3588')) {
+      return '(the) ${raw.substring(4)}';
+    }
+
+    return raw;
+  }
+
+  Widget _buildStrongsDefinitionCard({
+    required String code,
+    required Map<String, dynamic>? entryMap,
+    required List<_MorphToken> morphTokens,
+    required bool hasSuppressedArticleMorph,
+    required bool isArticle,
+  }) {
+    final sectionTitle = isArticle ? 'Article Entry' : 'Lexical Entry';
+    final sectionIcon =
+        isArticle ? Icons.text_fields_rounded : Icons.menu_book_rounded;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.black12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 26,
+                height: 26,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2F6B33).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  sectionIcon,
+                  size: 15,
+                  color: const Color(0xFF2F6B33),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                sectionTitle,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  letterSpacing: 0.3,
+                  color: Color(0xFF2F6B33),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Divider(
+            height: 1,
+            color: const Color(0xFF2F6B33).withValues(alpha: 0.2),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Text(
+                code,
+                style: const TextStyle(
+                  color: Color(0xFF2F6B33),
+                  fontSize: 12,
+                  letterSpacing: 1.1,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (isArticle) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2F6B33).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: const Text(
+                    'ARTICLE',
+                    style: TextStyle(
+                      color: Color(0xFF2F6B33),
+                      fontSize: 10,
+                      letterSpacing: 0.8,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          if (entryMap != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                if ((entryMap['lemma'] ?? '').toString().isNotEmpty)
+                  Flexible(
+                    child: Text(
+                      entryMap['lemma'].toString(),
+                      style: const TextStyle(
+                        fontSize: 19,
+                        color: Color(0xFF2F6B33),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                if ((entryMap['lemma'] ?? '').toString().isNotEmpty &&
+                    (entryMap['translit'] ?? '').toString().isNotEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 6),
+                    child: Text(
+                      '·',
+                      style: TextStyle(color: Colors.black38, fontSize: 18),
+                    ),
+                  ),
+                if ((entryMap['translit'] ?? '').toString().isNotEmpty)
+                  Flexible(
+                    child: Text(
+                      entryMap['translit'].toString(),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        color: Colors.black54,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+          if (morphTokens.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2F6B33).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: const Color(0xFF2F6B33).withValues(alpha: 0.26),
+                ),
+              ),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final token in morphTokens)
+                    Material(
+                      color: const Color(0xFF2F6B33).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(20),
+                        onTap: () => _showMorphTermExplanation(token),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          child: Text(
+                            token.label,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF2F6B33),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+          if (hasSuppressedArticleMorph) ...[
+            const SizedBox(height: 10),
+            const Text(
+              'Morphology in this phrase is tagged for the article; this card focuses on the lexical word.',
+              style: TextStyle(
+                fontSize: 12.5,
+                height: 1.35,
+                color: Colors.black54,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: Colors.black12),
+          const SizedBox(height: 12),
+          if (entryMap == null)
+            Text(
+              'No entry found for $code.',
+              style: const TextStyle(color: Colors.black54),
+            )
+          else ...[
+            if ((entryMap['strongs_def'] ?? '').toString().trim().isNotEmpty)
+              Text(
+                entryMap['strongs_def'].toString().trim(),
+                style: const TextStyle(
+                  fontSize: 15,
+                  height: 1.55,
+                  color: Color(0xFF1A1A1A),
+                ),
+              ),
+            if ((entryMap['kjv_def'] ?? '').toString().trim().isNotEmpty) ...[
+              const SizedBox(height: 12),
+              RichText(
+                text: TextSpan(
+                  style: const TextStyle(
+                    fontSize: 14,
+                    height: 1.5,
+                    color: Color(0xFF444444),
+                  ),
+                  children: [
+                    const TextSpan(
+                      text: 'KJV uses:  ',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1A1A1A),
+                      ),
+                    ),
+                    TextSpan(text: entryMap['kjv_def'].toString().trim()),
+                  ],
+                ),
+              ),
+            ],
+            if ((entryMap['derivation'] ?? '').toString().trim().isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                entryMap['derivation'].toString().trim(),
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Colors.black45,
+                  fontStyle: FontStyle.italic,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
   Future<void> _showStrongsEntry(Word word) async {
     if (word.s.isEmpty) return;
-    // For multi-code words (article + noun), the last code is the content word
-    final primaryCode = word.s.length > 1 ? word.s.last : word.s.first;
+    final displayEntries = _buildStrongsDisplayEntries(word);
+    if (displayEntries.isEmpty) return;
+    final headerCodeLabel = displayEntries.map((e) => e.code).join(' + ');
+    final studyLabel = _studyWordLabel(word);
+    // Only show the "(the)" legend when the article is embedded in the English
+    // text with no dedicated G3588 card (otherwise the article has its own card).
+    final textStartsWithThe = word.w.toLowerCase().trim().startsWith('the ') && word.w.length > 4;
+    final showsArticleMarker = textStartsWithThe && !word.s.contains('G3588');
 
     if (!_isStrongsDictionaryLoaded) {
       await _loadStrongsDictionary();
     }
 
     if (!mounted) return;
-
-    final entry = _strongsDictionary[primaryCode];
-    final entryMap = entry is Map<String, dynamic> ? entry : null;
-    final morphTokens = _decodeMorphologyTokens(word.m);
 
     showModalBottomSheet<void>(
       context: context,
@@ -670,13 +1156,18 @@ class _BibleReaderState extends State<BibleReader> {
                 Container(
                   decoration: const BoxDecoration(
                     color: Color(0xFF2F6B33),
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 14,
+                  ),
                   child: Row(
                     children: [
                       Text(
-                        primaryCode,
+                        headerCodeLabel,
                         style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 13,
@@ -687,7 +1178,11 @@ class _BibleReaderState extends State<BibleReader> {
                       const Spacer(),
                       GestureDetector(
                         onTap: () => Navigator.pop(context),
-                        child: const Icon(Icons.close, color: Colors.white70, size: 22),
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.white70,
+                          size: 22,
+                        ),
                       ),
                     ],
                   ),
@@ -699,155 +1194,58 @@ class _BibleReaderState extends State<BibleReader> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // English word
+                        // English word/phrase
                         Text(
-                          word.w,
+                          studyLabel,
                           style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w700,
                             color: Color(0xFF1A1A1A),
                           ),
                         ),
-                        // Greek lemma + transliteration
-                        if (entryMap != null) ...[
-                          const SizedBox(height: 4),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.baseline,
-                            textBaseline: TextBaseline.alphabetic,
-                            children: [
-                              if ((entryMap['lemma'] ?? '').toString().isNotEmpty)
-                                Text(
-                                  entryMap['lemma'].toString(),
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    color: Color(0xFF2F6B33),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              if ((entryMap['lemma'] ?? '').toString().isNotEmpty &&
-                                  (entryMap['translit'] ?? '').toString().isNotEmpty)
-                                const Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 6),
-                                  child: Text('·', style: TextStyle(color: Colors.black38, fontSize: 18)),
-                                ),
-                              if ((entryMap['translit'] ?? '').toString().isNotEmpty)
-                                Text(
-                                  entryMap['translit'].toString(),
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.black54,
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ],
-                        // Morphology chips
-                        if (morphTokens.isNotEmpty) ...[
-                          const SizedBox(height: 12),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 12,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF2F6B33).withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: const Color(0xFF2F6B33).withValues(alpha: 0.35),
-                              ),
-                            ),
-                            child: Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: [
-                                for (final token in morphTokens)
-                                  Material(
-                                    color: const Color(0xFF2F6B33).withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(20),
-                                    child: InkWell(
-                                      borderRadius: BorderRadius.circular(20),
-                                      onTap: () => _showMorphTermExplanation(token),
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 8,
-                                        ),
-                                        child: Text(
-                                          token.label,
-                                          style: const TextStyle(
-                                            fontSize: 14,
-                                            color: Color(0xFF2F6B33),
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ],
-                        const SizedBox(height: 16),
-                        const Divider(height: 1, color: Colors.black12),
-                        const SizedBox(height: 14),
-                        // No entry fallback
-                        if (entryMap == null)
-                          Text(
-                            'No entry found for $primaryCode.',
-                            style: const TextStyle(color: Colors.black54),
-                          )
-                        else ...[
-                          // Strong's definition
-                          if ((entryMap['strongs_def'] ?? '').toString().trim().isNotEmpty)
-                            Text(
-                              entryMap['strongs_def'].toString().trim(),
-                              style: const TextStyle(
-                                fontSize: 15,
-                                height: 1.55,
-                                color: Color(0xFF1A1A1A),
-                              ),
-                            ),
-                          // KJV usages
-                          if ((entryMap['kjv_def'] ?? '').toString().trim().isNotEmpty) ...[
-                            const SizedBox(height: 14),
-                            const Divider(height: 1, color: Colors.black12),
-                            const SizedBox(height: 12),
-                            RichText(
-                              text: TextSpan(
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  height: 1.5,
-                                  color: Color(0xFF444444),
-                                ),
-                                children: [
-                                  const TextSpan(
-                                    text: 'KJV uses:  ',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFF1A1A1A),
-                                    ),
-                                  ),
-                                  TextSpan(text: entryMap['kjv_def'].toString().trim()),
-                                ],
-                              ),
-                            ),
-                          ],
-                          // Derivation (smaller, muted)
-                          if ((entryMap['derivation'] ?? '').toString().trim().isNotEmpty) ...[
-                            const SizedBox(height: 12),
-                            Text(
-                              entryMap['derivation'].toString().trim(),
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: Colors.black45,
+                        if (showsArticleMarker)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 4),
+                            child: Text(
+                              '(the) indicates an article in the Greek phrase.',
+                              style: TextStyle(
+                                color: Colors.black54,
+                                fontSize: 12.5,
                                 fontStyle: FontStyle.italic,
-                                height: 1.4,
                               ),
                             ),
-                          ],
-                        ],
+                          ),
+                        if (displayEntries.length > 1)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 4),
+                            child: Text(
+                              'This phrase includes multiple original Greek terms.',
+                              style: TextStyle(
+                                color: Colors.black54,
+                                fontSize: 13,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        for (final display in displayEntries)
+                          _buildStrongsDefinitionCard(
+                            code: display.code,
+                            entryMap: _strongsDictionary[display.code]
+                                    is Map<String, dynamic>
+                                ? _strongsDictionary[display.code]
+                                      as Map<String, dynamic>
+                                : null,
+                            morphTokens: _morphTokensForSelectedCode(
+                              word,
+                              display.code,
+                            ),
+                            hasSuppressedArticleMorph:
+                                _isMorphSuppressedForSelectedCode(
+                                  word,
+                                  display.code,
+                                ),
+                            isArticle: display.isArticle,
+                          ),
                       ],
                     ),
                   ),
@@ -862,10 +1260,7 @@ class _BibleReaderState extends State<BibleReader> {
 
   Widget _buildVerseText(Verse verse, TextStyle baseStyle, TextStyle refStyle) {
     final children = <Widget>[
-      Text(
-        '${verse.chapter}:${verse.verse} ',
-        style: refStyle,
-      ),
+      Text('${verse.chapter}:${verse.verse} ', style: refStyle),
     ];
 
     for (final word in verse.words) {
@@ -920,31 +1315,33 @@ class _BibleReaderState extends State<BibleReader> {
       setState(() {});
       _setTipVisibilityFromNotes();
     });
-    _bibleFuture = _restoreReadingPosition().then((_) {
-      return _bibleService.loadBible();
-    }).then((verses) {
-      _books = _bibleService.getUniqueBooks();
-      if (_selectedBook == null && _books.isNotEmpty) {
-        _selectedBook =
-            (_restoredBook != null && _books.contains(_restoredBook))
-            ? _restoredBook
-            : _books.first;
-        _loadBook(_selectedBook!);
-        if (_restoredOffset > 0) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted && _scrollController.hasClients) {
-              _scrollController.jumpTo(
-                _restoredOffset.clamp(
-                  0,
-                  _scrollController.position.maxScrollExtent,
-                ),
-              );
+    _bibleFuture = _restoreReadingPosition()
+        .then((_) {
+          return _bibleService.loadBible();
+        })
+        .then((verses) {
+          _books = _bibleService.getUniqueBooks();
+          if (_selectedBook == null && _books.isNotEmpty) {
+            _selectedBook =
+                (_restoredBook != null && _books.contains(_restoredBook))
+                ? _restoredBook
+                : _books.first;
+            _loadBook(_selectedBook!);
+            if (_restoredOffset > 0) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted && _scrollController.hasClients) {
+                  _scrollController.jumpTo(
+                    _restoredOffset.clamp(
+                      0,
+                      _scrollController.position.maxScrollExtent,
+                    ),
+                  );
+                }
+              });
             }
-          });
-        }
-      }
-      return verses;
-    });
+          }
+          return verses;
+        });
   }
 
   Future<void> _restoreReadingPosition() async {
@@ -1137,10 +1534,9 @@ class _BibleReaderState extends State<BibleReader> {
                               } else {
                                 results = allVerses
                                     .where(
-                                      (v) =>
-                                          v.plainText.toLowerCase().contains(
-                                            query,
-                                          ),
+                                      (v) => v.plainText.toLowerCase().contains(
+                                        query,
+                                      ),
                                     )
                                     .take(100)
                                     .toList();
@@ -1204,94 +1600,211 @@ class _BibleReaderState extends State<BibleReader> {
   void _showInfoPane() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFFFFF9DB),
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+        Widget sectionCard({
+          required IconData icon,
+          required String title,
+          required List<String> lines,
+        }) {
+          return Container(
+            margin: const EdgeInsets.only(top: 12),
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.58),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.black12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2F6B33).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(
+                        icon,
+                        size: 15,
+                        color: const Color(0xFF2F6B33),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Color(0xFF2F6B33),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
-                color: const Color(0xFF2F6B33),
-                child: const Text(
-                  'About This App',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
+                const SizedBox(height: 8),
+                for (final line in lines) ...[
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.only(top: 6),
+                        child: Icon(
+                          Icons.circle,
+                          size: 5,
+                          color: Color(0xFF2F6B33),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          line,
+                          style: const TextStyle(
+                            fontSize: 14.8,
+                            height: 1.4,
+                            color: Color(0xFF1E1E1E),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 7),
+                ],
+              ],
+            ),
+          );
+        }
+
+        return SafeArea(
+          top: false,
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Color(0xFFFFF9DB),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 56,
+                  height: 5,
+                  margin: const EdgeInsets.only(top: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2F6B33).withValues(alpha: 0.28),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                 ),
-              ),
-              Flexible(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
-                          'About App',
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 10, 12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF2F6B33), Color(0xFF3E8146)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(9),
+                        ),
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.info_outline_rounded,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Text(
+                          'About This App',
                           style: TextStyle(
-                            fontSize: 18,
+                            color: Colors.white,
+                            fontSize: 19,
                             fontWeight: FontWeight.w700,
+                            letterSpacing: 0.2,
                           ),
                         ),
-                        SizedBox(height: 8),
-                        Text(
-                          'This app is built for reading and verse-by-verse notation.',
-                          style: TextStyle(
-                            fontSize: 17,
-                            height: 1.35,
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close_rounded),
+                        color: Colors.white,
+                        visualDensity: VisualDensity.compact,
+                        splashRadius: 20,
+                      ),
+                    ],
+                  ),
+                ),
+                Flexible(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          sectionCard(
+                            icon: Icons.explore_rounded,
+                            title: 'Overview',
+                            lines: const [
+                              'Immersive New Testament reading with integrated Greek Strong\'s lookup, morphology help, and verse notes.',
+                            ],
                           ),
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          'Translation',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
+                          sectionCard(
+                            icon: Icons.library_books_rounded,
+                            title: 'Text and Source',
+                            lines: const [
+                              'Uses the New Testament KJV text with Greek Strong\'s references in the source data.',
+                              'Words added by translators may appear in italics.',
+                            ],
                           ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'This app uses the New Testament KJV text with Greek Strong\'s '
-                          'references in the source data. Helper words may appear in italics. '
-                          'Tap a word to open its Greek Strong\'s definition and related details.',
-                          style: TextStyle(
-                            fontSize: 17,
-                            height: 1.35,
+                          sectionCard(
+                            icon: Icons.menu_book_rounded,
+                            title: 'Word Study Features',
+                            lines: const [
+                              'Tap a normal word to open its Greek Strong\'s panel.',
+                              'Some phrases include two entries (lexical word + article) shown as separate cards.',
+                              'Morphology appears as clickable chips.',
+                              'Tap any morphology term chip for a quick explanation.',
+                            ],
                           ),
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          'Instructions',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
+                          sectionCard(
+                            icon: Icons.travel_explore_rounded,
+                            title: 'Reading and Navigation',
+                            lines: const [
+                              'Use the book and chapter controls to jump anywhere in the New Testament.',
+                              'Use Search to find words or phrases across verses.',
+                              'Use Text to adjust reading size.',
+                              'Your reading position is automatically remembered.',
+                            ],
                           ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          '- Long-press a verse to add or edit a note.\n'
-                          '- Use Notes to browse all saved notes.\n'
-                          '- Use Search to find words or phrases.\n'
-                          '- Tap a word to view its Greek Strong\'s definition.\n'
-                          '- Use Text to enlarge reading size.',
-                          style: TextStyle(
-                            fontSize: 17,
-                            height: 1.35,
+                          sectionCard(
+                            icon: Icons.sticky_note_2_rounded,
+                            title: 'Notes',
+                            lines: const [
+                              'Long-press a verse to add or edit a note.',
+                              'Use Notes to browse and reopen your saved notes by reference.',
+                            ],
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -1437,9 +1950,7 @@ class _BibleReaderState extends State<BibleReader> {
               Container(
                 color: const Color(0xFFFFF9DB),
                 height: 56,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
                   children: [
                     Expanded(
@@ -1676,5 +2187,3 @@ class _BibleReaderState extends State<BibleReader> {
     );
   }
 }
-
-
