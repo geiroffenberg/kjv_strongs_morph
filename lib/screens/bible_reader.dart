@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter/services.dart';
@@ -1025,12 +1026,64 @@ class _BibleReaderState extends State<BibleReader> {
     return _capitalizeFirstLetter(label);
   }
 
+  List<InlineSpan> _buildLinkedStrongsSpans({
+    required String text,
+    required TextStyle baseStyle,
+    required ValueChanged<String> onCodeTap,
+  }) {
+    final codeRegex = RegExp(r'\b[GH]\d{1,4}\b');
+    final matches = codeRegex.allMatches(text).toList();
+
+    if (matches.isEmpty) {
+      return [TextSpan(text: text, style: baseStyle)];
+    }
+
+    final linkStyle = baseStyle.copyWith(
+      color: Colors.blue[700],
+      decoration: TextDecoration.underline,
+      fontWeight: FontWeight.w600,
+      fontSize: (baseStyle.fontSize ?? 14) + 1,
+    );
+
+    final spans = <InlineSpan>[];
+    var cursor = 0;
+
+    for (final match in matches) {
+      if (match.start > cursor) {
+        spans.add(
+          TextSpan(text: text.substring(cursor, match.start), style: baseStyle),
+        );
+      }
+
+      final code = match.group(0)!;
+      spans.add(
+        TextSpan(
+          text: code,
+          style: linkStyle,
+          recognizer: TapGestureRecognizer()
+            ..onTap = () {
+              onCodeTap(code);
+            },
+        ),
+      );
+
+      cursor = match.end;
+    }
+
+    if (cursor < text.length) {
+      spans.add(TextSpan(text: text.substring(cursor), style: baseStyle));
+    }
+
+    return spans;
+  }
+
   Widget _buildStrongsDefinitionCard({
     required String code,
     required Map<String, dynamic>? entryMap,
     required List<_MorphToken> morphTokens,
     required bool hasSuppressedArticleMorph,
     required bool isArticle,
+    ValueChanged<String>? onCodeTap,
   }) {
     final sectionTitle = isArticle ? 'Article Entry' : 'Lexical Entry';
     final sectionIcon = isArticle
@@ -1222,12 +1275,22 @@ class _BibleReaderState extends State<BibleReader> {
             )
           else ...[
             if ((entryMap['strongs_def'] ?? '').toString().trim().isNotEmpty)
-              Text(
-                entryMap['strongs_def'].toString().trim(),
-                style: const TextStyle(
-                  fontSize: 15,
-                  height: 1.55,
-                  color: Color(0xFF1A1A1A),
+              RichText(
+                text: TextSpan(
+                  style: const TextStyle(
+                    fontSize: 15,
+                    height: 1.55,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                  children: _buildLinkedStrongsSpans(
+                    text: entryMap['strongs_def'].toString().trim(),
+                    baseStyle: const TextStyle(
+                      fontSize: 15,
+                      height: 1.55,
+                      color: Color(0xFF1A1A1A),
+                    ),
+                    onCodeTap: onCodeTap ?? _showStrongsEntryByCode,
+                  ),
                 ),
               ),
             if ((entryMap['kjv_def'] ?? '').toString().trim().isNotEmpty) ...[
@@ -1247,29 +1310,153 @@ class _BibleReaderState extends State<BibleReader> {
                         color: Color(0xFF1A1A1A),
                       ),
                     ),
-                    TextSpan(text: entryMap['kjv_def'].toString().trim()),
+                    ..._buildLinkedStrongsSpans(
+                      text: entryMap['kjv_def'].toString().trim(),
+                      baseStyle: const TextStyle(
+                        fontSize: 14,
+                        height: 1.5,
+                        color: Color(0xFF444444),
+                      ),
+                      onCodeTap: onCodeTap ?? _showStrongsEntryByCode,
+                    ),
                   ],
                 ),
               ),
             ],
-            if ((entryMap['derivation'] ?? '')
-                .toString()
-                .trim()
-                .isNotEmpty) ...[
+            if ((entryMap['derivation'] ?? '').toString().trim().isNotEmpty) ...[
               const SizedBox(height: 10),
-              Text(
-                entryMap['derivation'].toString().trim(),
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: Colors.black45,
-                  fontStyle: FontStyle.italic,
-                  height: 1.4,
+              RichText(
+                text: TextSpan(
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Colors.black45,
+                    fontStyle: FontStyle.italic,
+                    height: 1.4,
+                  ),
+                  children: _buildLinkedStrongsSpans(
+                    text: entryMap['derivation'].toString().trim(),
+                    baseStyle: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.black45,
+                      fontStyle: FontStyle.italic,
+                      height: 1.4,
+                    ),
+                    onCodeTap: onCodeTap ?? _showStrongsEntryByCode,
+                  ),
                 ),
               ),
             ],
           ],
         ],
       ),
+    );
+  }
+
+  Future<void> _showStrongsEntryByCode(String code) async {
+    if (code.trim().isEmpty) return;
+
+    if (!_isStrongsDictionaryLoaded) {
+      await _loadStrongsDictionary();
+    }
+
+    if (!mounted) return;
+
+    final entryMap = _strongsDictionary[code] is Map<String, dynamic>
+        ? _strongsDictionary[code] as Map<String, dynamic>
+        : null;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        final mediaQuery = MediaQuery.of(sheetContext);
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: mediaQuery.size.height - mediaQuery.padding.top,
+          ),
+          decoration: const BoxDecoration(
+            color: Color(0xFFFFF9DB),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          child: SafeArea(
+            top: true,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF2F6B33),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 14,
+                  ),
+                  child: Row(
+                    children: [
+                      Text(
+                        code,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                          letterSpacing: 1.2,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(sheetContext),
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.white70,
+                          size: 22,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Strong\'s Reference',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1A1A1A),
+                          ),
+                        ),
+                        _buildStrongsDefinitionCard(
+                          code: code,
+                          entryMap: entryMap,
+                          morphTokens: const [],
+                          hasSuppressedArticleMorph: false,
+                          isArticle: code == 'G3588',
+                          onCodeTap: (nextCode) {
+                            Navigator.of(sheetContext).pop();
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (!mounted) return;
+                              _showStrongsEntryByCode(nextCode);
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
