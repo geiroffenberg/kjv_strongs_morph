@@ -1323,7 +1323,10 @@ class _BibleReaderState extends State<BibleReader> {
                 ),
               ),
             ],
-            if ((entryMap['derivation'] ?? '').toString().trim().isNotEmpty) ...[
+            if ((entryMap['derivation'] ?? '')
+                .toString()
+                .trim()
+                .isNotEmpty) ...[
               const SizedBox(height: 10),
               RichText(
                 text: TextSpan(
@@ -1539,7 +1542,6 @@ class _BibleReaderState extends State<BibleReader> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // English word/phrase
                         Text(
                           studyLabel,
                           style: const TextStyle(
