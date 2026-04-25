@@ -45,15 +45,18 @@ class NoteService {
     return _notesCache[key];
   }
 
-  Future<void> saveNote(String bookName, int chapter, int verse, String text) async {
+  Future<void> saveNote(
+    String bookName,
+    int chapter,
+    int verse,
+    String text,
+  ) async {
     await loadNotes();
     final key = _noteKey(bookName, chapter, verse);
     final now = DateTime.now();
 
-    final note = _notesCache[key]?.copyWith(
-          text: text,
-          updatedAt: now,
-        ) ??
+    final note =
+        _notesCache[key]?.copyWith(text: text, updatedAt: now) ??
         Note(
           bookName: bookName,
           chapter: chapter,
@@ -76,7 +79,12 @@ class NoteService {
 
   bool hasNote(String bookName, int chapter, int verse) {
     final key = _noteKey(bookName, chapter, verse);
-    return _notesCache.containsKey(key) && _notesCache[key]!.text.trim().isNotEmpty;
+    return _notesCache.containsKey(key) &&
+        _notesCache[key]!.text.trim().isNotEmpty;
+  }
+
+  bool hasAnyNotes() {
+    return _notesCache.values.any((note) => note.text.trim().isNotEmpty);
   }
 
   Future<void> _persistNotes() async {
@@ -93,11 +101,10 @@ class NoteService {
   }
 
   List<Note> getAllNotes() {
-    return _notesCache.values.toList()
-      ..sort((a, b) {
-        final aKey = '${a.bookName}_${a.chapter}_${a.verse}';
-        final bKey = '${b.bookName}_${b.chapter}_${b.verse}';
-        return aKey.compareTo(bKey);
-      });
+    return _notesCache.values.toList()..sort((a, b) {
+      final aKey = '${a.bookName}_${a.chapter}_${a.verse}';
+      final bKey = '${b.bookName}_${b.chapter}_${b.verse}';
+      return aKey.compareTo(bKey);
+    });
   }
 }

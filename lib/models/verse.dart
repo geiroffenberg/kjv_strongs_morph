@@ -1,23 +1,36 @@
 class Word {
   final String w;
   final List<String> s;
-  final String? m;
+  final List<String?> m;
   final bool a;
   final String? p;
 
   const Word({
     required this.w,
     required this.s,
-    this.m,
+    this.m = const [],
     this.a = false,
     this.p,
   });
 
   factory Word.fromJson(Map<String, dynamic> json) {
+    final morphJson = json['m'];
+    List<String?> morphList = [];
+
+    if (morphJson != null) {
+      if (morphJson is String) {
+        // Legacy format: single string
+        morphList = [morphJson];
+      } else if (morphJson is List) {
+        // New format: array of strings/nulls
+        morphList = (morphJson).map((m) => m as String?).toList();
+      }
+    }
+
     return Word(
       w: json['w'] as String,
       s: (json['s'] as List<dynamic>?)?.cast<String>() ?? [],
-      m: json['m'] as String?,
+      m: morphList,
       a: json['a'] as bool? ?? false,
       p: json['p'] as String?,
     );

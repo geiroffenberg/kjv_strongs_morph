@@ -6,6 +6,8 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
+
 import '../config/admob_config.dart';
 import '../models/verse.dart';
 import '../models/note.dart';
@@ -37,7 +39,7 @@ class BibleReader extends StatefulWidget {
 
 class _BibleReaderState extends State<BibleReader> {
   static const String _lastBookKey = 'last_read_book';
-  static const String _lastOffsetKey = 'last_read_offset';
+  static const String _lastIndexKey = 'last_read_index';
   static const String _hideStartupInfoKey = 'hide_startup_info';
 
   final BibleService _bibleService = BibleService();
@@ -47,9 +49,9 @@ class _BibleReaderState extends State<BibleReader> {
   String? _selectedBook;
   int? _selectedChapter;
   List<Verse> _currentBookVerses = [];
-  final ScrollController _scrollController = ScrollController();
-  final Map<int, GlobalKey> _chapterHeaderKeys = {};
-  final Map<String, GlobalKey> _verseKeys = {};
+  final ItemScrollController _itemScrollController = ItemScrollController();
+  final ItemPositionsListener _itemPositionsListener =
+      ItemPositionsListener.create();
   Timer? _savePositionTimer;
   Timer? _tipTimer;
   BannerAd? _bannerAd;
@@ -59,7 +61,7 @@ class _BibleReaderState extends State<BibleReader> {
   bool _isStrongsDictionaryLoaded = false;
   bool _isLoadingStrongsDictionary = false;
   String? _restoredBook;
-  double _restoredOffset = 0;
+  int _restoredIndex = 0;
   double _textScale = 1.0;
 
   void _loadBannerAd() {
@@ -88,7 +90,7 @@ class _BibleReaderState extends State<BibleReader> {
   }
 
   void _setTipVisibilityFromNotes() {
-    final hasAnyNotes = _noteService.getAllNotes().isNotEmpty;
+    final hasAnyNotes = _noteService.hasAnyNotes();
     if (hasAnyNotes) {
       _tipTimer?.cancel();
       if (_showLongPressTip && mounted) {
@@ -114,12 +116,11 @@ class _BibleReaderState extends State<BibleReader> {
     });
   }
 
-  GlobalKey _chapterKey(int chapter) {
-    return _chapterHeaderKeys.putIfAbsent(chapter, () => GlobalKey());
-  }
-
-  GlobalKey _verseKey(int chapter, int verse) {
-    return _verseKeys.putIfAbsent('$chapter:$verse', () => GlobalKey());
+  int? _verseIndexInBook(int chapter, int verse) {
+    final idx = _currentBookVerses.indexWhere(
+      (v) => v.chapter == chapter && v.verse == verse,
+    );
+    return idx >= 0 ? idx : null;
   }
 
   Future<void> _loadStrongsDictionary() async {
@@ -936,26 +937,48 @@ class _BibleReaderState extends State<BibleReader> {
     Word word,
     String selectedCode,
   ) {
-    if (word.m == null || word.m!.isEmpty) return const [];
-    if (word.s.length <= 1) return _decodeMorphologyTokens(word.m);
+    if (word.m.isEmpty) return const [];
 
-    final morph = word.m!;
-    final selectedIsFirstCode =
-        word.s.isNotEmpty && word.s.first == selectedCode;
+    // Find the index of the selected Strong's code
+    final selectedIndex = word.s.indexOf(selectedCode);
+    if (selectedIndex < 0) return const [];
 
-    // In this dataset, T-* often tags the article in a two-code phrase.
-    // If we focused a later non-article code, suppress mismatched morphology chips.
-    if (morph.startsWith('T-') && !selectedIsFirstCode) {
-      return const [];
+    // Get the morphology for this index
+    String? morphForCode;
+    if (selectedIndex < word.m.length) {
+      morphForCode = word.m[selectedIndex];
     }
 
-    return _decodeMorphologyTokens(word.m);
+    // If no morphology at this index, try to find a non-null one
+    if (morphForCode == null) {
+      // For multi-code entries where one has morphology, use it if it's not clearly for another code
+      morphForCode = word.m.firstWhere((m) => m != null, orElse: () => null);
+
+      // If the morphology starts with 'T-' (article) and we're not on the first code, suppress it
+      if (morphForCode?.startsWith('T-') ?? false) {
+        if (selectedIndex > 0) {
+          return const [];
+        }
+      }
+    }
+
+    return _decodeMorphologyTokens(morphForCode);
   }
 
   bool _isMorphSuppressedForSelectedCode(Word word, String selectedCode) {
     if (word.s.length <= 1) return false;
-    if (!(word.m?.startsWith('T-') ?? false)) return false;
-    return word.s.first != selectedCode;
+    if (word.m.isEmpty) return false;
+
+    final selectedIndex = word.s.indexOf(selectedCode);
+    if (selectedIndex < 0) return false;
+
+    // Only show the fallback note for true null morphology slots in
+    // multi-code phrases where another slot is tagged as an article.
+    if (selectedIndex >= word.m.length || word.m[selectedIndex] != null) {
+      return false;
+    }
+
+    return word.m.any((morph) => morph?.startsWith('T-') ?? false);
   }
 
   List<_StrongsDisplayEntry> _buildStrongsDisplayEntries(Word word) {
@@ -1180,7 +1203,7 @@ class _BibleReaderState extends State<BibleReader> {
           if (hasSuppressedArticleMorph) ...[
             const SizedBox(height: 10),
             const Text(
-              'Morphology in this phrase is tagged for the article; this card focuses on the lexical word.',
+              'No separate morphology tag is available for this lexical term in this phrase.',
               style: TextStyle(
                 fontSize: 12.5,
                 height: 1.35,
@@ -1402,7 +1425,12 @@ class _BibleReaderState extends State<BibleReader> {
     );
   }
 
-  Widget _buildVerseText(Verse verse, TextStyle baseStyle, TextStyle refStyle) {
+  Widget _buildVerseText(
+    Verse verse,
+    TextStyle baseStyle,
+    TextStyle refStyle, {
+    required bool hasNote,
+  }) {
     final children = <Widget>[
       Text('${verse.chapter}:${verse.verse} ', style: refStyle),
     ];
@@ -1435,8 +1463,9 @@ class _BibleReaderState extends State<BibleReader> {
           for (var i = 0; i < parts.length; i++) {
             final part = parts[i];
             final isLast = i == parts.length - 1;
-            final visibleText =
-                isLast && word.p != null ? '$part${word.p} ' : '$part ';
+            final visibleText = isLast && word.p != null
+                ? '$part${word.p} '
+                : '$part ';
 
             children.add(
               GestureDetector(
@@ -1452,7 +1481,7 @@ class _BibleReaderState extends State<BibleReader> {
       }
     }
 
-    if (_noteService.hasNote(verse.bookName, verse.chapter, verse.verse)) {
+    if (hasNote) {
       children.add(
         const Text(
           '*',
@@ -1477,7 +1506,7 @@ class _BibleReaderState extends State<BibleReader> {
     _loadBannerAd();
     _loadStrongsDictionary();
     _showStartupInfoIfNeeded();
-    _scrollController.addListener(_onScrollChanged);
+    _itemPositionsListener.itemPositions.addListener(_onScrollChanged);
     _noteService.loadNotes().then((_) {
       if (!mounted) return;
       setState(() {});
@@ -1495,15 +1524,10 @@ class _BibleReaderState extends State<BibleReader> {
                 ? _restoredBook
                 : _books.first;
             _loadBook(_selectedBook!);
-            if (_restoredOffset > 0) {
+            if (_restoredIndex > 0) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted && _scrollController.hasClients) {
-                  _scrollController.jumpTo(
-                    _restoredOffset.clamp(
-                      0,
-                      _scrollController.position.maxScrollExtent,
-                    ),
-                  );
+                if (mounted && _itemScrollController.isAttached) {
+                  _itemScrollController.jumpTo(index: _restoredIndex);
                 }
               });
             }
@@ -1515,13 +1539,37 @@ class _BibleReaderState extends State<BibleReader> {
   Future<void> _restoreReadingPosition() async {
     final prefs = await SharedPreferences.getInstance();
     _restoredBook = prefs.getString(_lastBookKey);
-    _restoredOffset = prefs.getDouble(_lastOffsetKey) ?? 0;
+    _restoredIndex = prefs.getInt(_lastIndexKey) ?? 0;
   }
 
   void _onScrollChanged() {
+    _syncSelectedChapterWithScroll();
     _savePositionTimer?.cancel();
-    _savePositionTimer = Timer(const Duration(milliseconds: 400), () {
+    _savePositionTimer = Timer(const Duration(milliseconds: 900), () {
       _saveReadingPosition();
+    });
+  }
+
+  void _syncSelectedChapterWithScroll() {
+    if (_currentBookVerses.isEmpty) return;
+
+    final positions = _itemPositionsListener.itemPositions.value.toList();
+    if (positions.isEmpty) return;
+
+    positions.sort((a, b) => a.index.compareTo(b.index));
+    final firstVisible = positions.firstWhere(
+      (p) => p.itemTrailingEdge > 0,
+      orElse: () => positions.first,
+    );
+
+    final index = firstVisible.index;
+    if (index < 0 || index >= _currentBookVerses.length) return;
+
+    final visibleChapter = _currentBookVerses[index].chapter;
+    if (_selectedChapter == visibleChapter) return;
+
+    setState(() {
+      _selectedChapter = visibleChapter;
     });
   }
 
@@ -1531,16 +1579,20 @@ class _BibleReaderState extends State<BibleReader> {
     if (selectedBook != null && selectedBook.isNotEmpty) {
       await prefs.setString(_lastBookKey, selectedBook);
     }
-    if (_scrollController.hasClients) {
-      await prefs.setDouble(_lastOffsetKey, _scrollController.offset);
+    final positions = _itemPositionsListener.itemPositions.value.toList();
+    if (positions.isNotEmpty) {
+      positions.sort((a, b) => a.index.compareTo(b.index));
+      final firstVisible = positions.firstWhere(
+        (p) => p.itemTrailingEdge > 0,
+        orElse: () => positions.first,
+      );
+      await prefs.setInt(_lastIndexKey, firstVisible.index);
     }
   }
 
   void _loadBook(String book) {
     setState(() {
       _selectedBook = book;
-      _chapterHeaderKeys.clear();
-      _verseKeys.clear();
       _currentBookVerses = _bibleService
           .getAllVerses()
           .where((v) => v.bookName == book)
@@ -1551,12 +1603,10 @@ class _BibleReaderState extends State<BibleReader> {
   }
 
   void _jumpToChapter(int chapter) {
-    final key = _chapterKey(chapter);
-    final ctx = key.currentContext;
-    if (ctx == null) return;
-    Scrollable.ensureVisible(
-      ctx,
-      alignment: 0.0,
+    final idx = _currentBookVerses.indexWhere((v) => v.chapter == chapter);
+    if (idx < 0 || !_itemScrollController.isAttached) return;
+    _itemScrollController.scrollTo(
+      index: idx,
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
     );
@@ -1574,12 +1624,10 @@ class _BibleReaderState extends State<BibleReader> {
   }
 
   void _animateToVerse(int chapter, int verse) {
-    final key = _verseKey(chapter, verse);
-    final ctx = key.currentContext;
-    if (ctx == null) return;
-    Scrollable.ensureVisible(
-      ctx,
-      alignment: 0.0,
+    final idx = _verseIndexInBook(chapter, verse);
+    if (idx == null || !_itemScrollController.isAttached) return;
+    _itemScrollController.scrollTo(
+      index: idx,
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
     );
@@ -1725,7 +1773,19 @@ class _BibleReaderState extends State<BibleReader> {
                             padding: EdgeInsets.symmetric(vertical: 20),
                             child: Text('No verses found.'),
                           )
-                        else
+                        else ...[
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Tap a verse to jump to that place in the Bible text.',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                color: Colors.black54,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
                           SizedBox(
                             height: 380,
                             child: ListView.builder(
@@ -1753,6 +1813,7 @@ class _BibleReaderState extends State<BibleReader> {
                               },
                             ),
                           ),
+                        ],
                       ],
                     ),
                   ),
@@ -2014,8 +2075,7 @@ class _BibleReaderState extends State<BibleReader> {
     _tipTimer?.cancel();
     _saveReadingPosition();
     _bannerAd?.dispose();
-    _scrollController.removeListener(_onScrollChanged);
-    _scrollController.dispose();
+    _itemPositionsListener.itemPositions.removeListener(_onScrollChanged);
     super.dispose();
   }
 
@@ -2224,13 +2284,18 @@ class _BibleReaderState extends State<BibleReader> {
               Expanded(
                 child: _currentBookVerses.isEmpty
                     ? const Center(child: Text('No verses found'))
-                    : ListView.builder(
-                        controller: _scrollController,
-                        cacheExtent: 999999,
+                    : ScrollablePositionedList.builder(
+                        itemScrollController: _itemScrollController,
+                        itemPositionsListener: _itemPositionsListener,
                         padding: const EdgeInsets.all(16),
                         itemCount: _currentBookVerses.length,
                         itemBuilder: (context, index) {
                           final verse = _currentBookVerses[index];
+                          final hasNote = _noteService.hasNote(
+                            verse.bookName,
+                            verse.chapter,
+                            verse.verse,
+                          );
                           final prevVerse = index > 0
                               ? _currentBookVerses[index - 1]
                               : null;
@@ -2243,68 +2308,49 @@ class _BibleReaderState extends State<BibleReader> {
                             children: [
                               // Chapter Header
                               if (isNewChapter) ...[
-                                Container(
-                                  key: _chapterKey(verse.chapter),
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(
-                                      top: 16,
-                                      bottom: 0,
-                                    ),
-                                    child: Text(
-                                      'Chapter ${verse.chapter}',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.blue[700],
-                                            fontSize:
-                                                (Theme.of(context)
-                                                        .textTheme
-                                                        .titleMedium
-                                                        ?.fontSize ??
-                                                    16) *
-                                                _textScale,
-                                          ),
-                                    ),
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    top: 16,
+                                    bottom: 0,
+                                  ),
+                                  child: Text(
+                                    'Chapter ${verse.chapter}',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.blue[700],
+                                          fontSize:
+                                              (Theme.of(context)
+                                                      .textTheme
+                                                      .titleMedium
+                                                      ?.fontSize ??
+                                                  16) *
+                                              _textScale,
+                                        ),
                                   ),
                                 ),
                               ],
                               // Verse
                               GestureDetector(
-                                key: _verseKey(verse.chapter, verse.verse),
                                 onLongPress: () => _showNoteEditor(verse),
                                 child: Padding(
                                   padding: EdgeInsets.zero,
                                   child: Container(
                                     decoration: BoxDecoration(
-                                      color:
-                                          _noteService.hasNote(
-                                            verse.bookName,
-                                            verse.chapter,
-                                            verse.verse,
-                                          )
+                                      color: hasNote
                                           ? Colors.yellow[50]
                                           : Colors.transparent,
                                       borderRadius: BorderRadius.circular(4),
-                                      border:
-                                          _noteService.hasNote(
-                                            verse.bookName,
-                                            verse.chapter,
-                                            verse.verse,
-                                          )
+                                      border: hasNote
                                           ? Border.all(
                                               color: Colors.yellow[200]!,
                                               width: 1,
                                             )
                                           : null,
                                     ),
-                                    padding:
-                                        _noteService.hasNote(
-                                          verse.bookName,
-                                          verse.chapter,
-                                          verse.verse,
-                                        )
+                                    padding: hasNote
                                         ? const EdgeInsets.all(8)
                                         : EdgeInsets.zero,
                                     child: _buildVerseText(
@@ -2330,6 +2376,7 @@ class _BibleReaderState extends State<BibleReader> {
                                                 16) *
                                             _textScale),
                                       ),
+                                      hasNote: hasNote,
                                     ),
                                   ),
                                 ),
